@@ -51,7 +51,7 @@ unit :: a -> Parser a
 unit a = Parser $ \input -> [(a, input)]
 
 instance Functor Parser where
-  fmap f (Parser parseA) = Parser $ \s -> (\(a, rest) -> (f a, rest)) <$> parseA s
+  fmap f (Parser parseA) = Parser $ (fmap (\(a, rest) -> (f a, rest)) . parseA)
 
 instance Applicative Parser where
   pure = unit
@@ -63,7 +63,7 @@ instance Monad Parser where
 
 -- Halts reading the stream and returns an empty stream
 failure :: Parser a
-failure = Parser $ \s -> []
+failure = Parser $ const []
 
 -- Use both parsers and return both results Parser with list of size >2
 combine :: Parser a -> Parser a -> Parser a
@@ -71,7 +71,7 @@ combine (Parser parsea1) (Parser parsea2) = Parser $ \s -> parsea1 s ++ parsea2 
 
 option :: Parser a -> Parser a -> Parser a
 option (Parser parseL) (Parser parseR) = Parser $ \input ->
-  case (parseL input) of
+  case parseL input of
     [] -> parseR input -- Failure case? So use other parser
     res -> res
 
@@ -88,7 +88,7 @@ some :: Alternative f => f a -> f [a]
 some v = some_v
  where
   many_v = some_v <|> pure []
-  some_v = ((\h t -> h : t) <$> v) <*> many_v
+  some_v = (\h t -> h : t) <$> v <*> many_v
 
 -- | Zero or more.
 many :: Alternative f => f a -> f [a]
@@ -107,8 +107,8 @@ satisfy p = bind item \char ->
 -- End of core of parser combinator
 -- Additional functions defined on top of that logic
 
-oneOf :: [Char] -> Parser Char
-oneOf s = satisfy (\c -> elem c s)
+oneOf :: String -> Parser Char
+oneOf s = satisfy (`elem` s)
 
 -- Parse 1+ occurances of a
 -- seperated by pfaa
@@ -152,3 +152,68 @@ token p = do
 
 spaces :: Parser String
 spaces = many $ oneOf "\n\r"
+
+digit :: Parser Char
+digit = satisfy isDigit
+
+number :: Parser Int
+number = do
+  sign <- string "-" <|> return []
+  num <- some digit
+  return $ read (sign ++ num)
+
+parens :: Parser a -> Parser a
+parens innerParser = do
+  reserved "("
+  inner <- innerParser
+  reserved ")"
+  return inner
+
+reserved :: String -> Parser String
+reserved s = token (string s)
+
+-- Calculator Grammar Section --
+
+data Expr
+  = Add Expr Expr
+  | Mul Expr Expr
+  | Sub Expr Expr
+  | Lit Int
+  deriving (Show)
+
+eval :: Expr -> Int
+eval ex = case ex of
+  Add a b -> eval a + eval b
+  Mul a b -> eval a * eval b
+  Sub a b -> eval a - eval b
+  Lit n -> n
+
+int :: Parser Expr
+int = do
+  Lit <$> number
+
+-- 1 + 1, 1 - 1
+expr :: Parser Expr
+expr = term `chainl1` addop
+
+--
+term :: Parser Expr
+term = chainl1 factor mulop
+
+-- A literal number or
+factor :: Parser Expr
+factor = int <|> parens expr
+
+infixOp :: String -> (a -> a -> a) -> Parser (a -> a -> a)
+infixOp x op = do
+  reserved x
+  return op
+
+addop :: Parser (Expr -> Expr -> Expr)
+addop = infixOp "+" Add <|> infixOp "-" Sub
+
+mulop :: Parser (Expr -> Expr -> Expr)
+mulop = undefined
+
+run :: String -> Expr
+run = runParser expr
