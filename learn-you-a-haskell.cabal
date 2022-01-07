@@ -25,6 +25,9 @@ source-repository head
 
 library
   exposed-modules:
+      Chapter2AST
+      Chapter2Parsec
+      Chapter2Parser
       Lib
       NanoParsec
   other-modules:
@@ -33,6 +36,7 @@ library
       src
   build-depends:
       base >=4.7 && <5
+    , parsec
   default-language: Haskell2010
 
 executable learn-you-a-haskell-exe
@@ -45,6 +49,7 @@ executable learn-you-a-haskell-exe
   build-depends:
       base >=4.7 && <5
     , learn-you-a-haskell
+    , parsec
   default-language: Haskell2010
 
 test-suite learn-you-a-haskell-test
@@ -58,4 +63,5 @@ test-suite learn-you-a-haskell-test
   build-depends:
       base >=4.7 && <5
     , learn-you-a-haskell
+    , parsec
   default-language: Haskell2010

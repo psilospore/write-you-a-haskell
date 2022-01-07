@@ -3,7 +3,7 @@
 
 module NanoParsec where
 
-import Control.Applicative hiding (many, some)
+import Control.Applicative ( Alternative(empty, (<|>)) )
 import Control.Monad
 import Data.Char
 
@@ -136,6 +136,12 @@ char c = satisfy (c ==)
 natural :: Parser Integer
 natural = read <$> some (satisfy isDigit)
 
+"{bob: "alice"}"
+
+"\{\"name\": \"alice1\"\}"
+
+{name: "alice1"}
+
 string :: String -> Parser String
 string [] = return []
 string (c : cs) = do
@@ -171,6 +177,7 @@ parens innerParser = do
 
 reserved :: String -> Parser String
 reserved s = token (string s)
+
 
 -- Calculator Grammar Section --
 
@@ -213,7 +220,13 @@ addop :: Parser (Expr -> Expr -> Expr)
 addop = infixOp "+" Add <|> infixOp "-" Sub
 
 mulop :: Parser (Expr -> Expr -> Expr)
-mulop = undefined
+mulop = infixOp "*" Mul
 
 run :: String -> Expr
 run = runParser expr
+
+main :: IO ()
+main = forever $ do
+  putStr "> "
+  a <- getLine
+  print $ eval $ run a
