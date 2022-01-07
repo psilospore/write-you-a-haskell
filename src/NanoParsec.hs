@@ -3,7 +3,7 @@
 
 module NanoParsec where
 
-import Control.Applicative
+import Control.Applicative hiding (many, some)
 import Control.Monad
 import Data.Char
 
@@ -110,13 +110,45 @@ satisfy p = bind item \char ->
 oneOf :: [Char] -> Parser Char
 oneOf s = satisfy (\c -> elem c s)
 
-chainl :: Parser a -> Parser (a -> a -> a) -> a -> Parser a
-chainl (Parser pa) (Parser pfaa) a =
-  let x = pa a
-   in _
+-- Parse 1+ occurances of a
+-- seperated by pfaa
+-- recurse value until failue
+-- chainl :: Parser a -> Parser (a -> a -> a) -> a -> Parser a
+--chainl (Parser pa) (Parser pfaa) a = chainlHelp pa pfaa <|> return a
 
+--chainlHelp :: Parser a -> Parser (a -> a -> a) -> Parser a
+--chainlHelp (Parser pa) (Parser pfaa) = _
+--
 chainl1 :: Parser a -> Parser (a -> a -> a) -> Parser a
-chainl1 (Parser f) (Parser faa) = _
+p `chainl1` op = do a <- p; rest a
+ where
+  rest a =
+    ( do
+        f <- op
+        b <- p
+        rest (f a b)
+    )
+      <|> return a
 
 char :: Char -> Parser Char
 char c = satisfy (c ==)
+
+natural :: Parser Integer
+natural = read <$> some (satisfy isDigit)
+
+string :: String -> Parser String
+string [] = return []
+string (c : cs) = do
+  char c
+  string cs
+  return (c : cs)
+
+-- There's a token followed by spaces
+token :: Parser a -> Parser a
+token p = do
+  a <- p
+  spaces
+  return a
+
+spaces :: Parser String
+spaces = many $ oneOf "\n\r"
